@@ -34,12 +34,16 @@ import org.apache.shardingsphere.sharding.api.config.rule.ShardingAutoTableRuleC
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.keygen.KeyGenerateStrategyConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.sharding.StandardShardingStrategyConfiguration;
+import org.apache.shardingsphere.sharding.distsql.handler.update.CreateShardingAlgorithmStatementUpdater;
+import org.apache.shardingsphere.sharding.distsql.handler.update.CreateShardingKeyGeneratorStatementUpdater;
 import org.apache.shardingsphere.sharding.distsql.handler.update.CreateShardingTableRuleStatementUpdater;
 import org.apache.shardingsphere.sharding.distsql.parser.facade.ShardingDistSQLStatementParserFacade;
 import org.apache.shardingsphere.sharding.distsql.parser.segment.AutoTableRuleSegment;
 import org.apache.shardingsphere.sharding.distsql.parser.segment.KeyGenerateStrategySegment;
 import org.apache.shardingsphere.sharding.distsql.parser.segment.ShardingStrategySegment;
 import org.apache.shardingsphere.sharding.distsql.parser.segment.TableRuleSegment;
+import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingAlgorithmStatement;
+import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingKeyGeneratorStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingTableRuleStatement;
 import org.apache.shardingsphere.sql.parser.api.visitor.SQLVisitor;
 import org.apache.shardingsphere.sql.parser.core.ParseASTNode;
@@ -139,6 +143,8 @@ public final class CreateShardingTableRuleStatementUpdaterTest {
                 + "KEY_GENERATE_STRATEGY(COLUMN=order_id,TYPE(NAME='snowflake')))";
         CreateShardingTableRuleStatement distSQLStatement = (CreateShardingTableRuleStatement) getDistSQLStatement(sql);
         updater.checkSQLStatement(database, distSQLStatement, null);
+        ShardingRuleConfiguration shardingRuleConfiguration = updater.buildToBeCreatedRuleConfiguration(distSQLStatement);
+        //TODO: need more assert
     }
     
     @Test(expected = DistSQLException.class)
@@ -151,7 +157,23 @@ public final class CreateShardingTableRuleStatementUpdaterTest {
         CreateShardingTableRuleStatement distSQLStatement = (CreateShardingTableRuleStatement) getDistSQLStatement(sql);
         updater.checkSQLStatement(database, distSQLStatement, null);
     }
-    
+
+    @Test
+    public void assertCheckCreateShardingStatementThrows2() throws DistSQLException {
+        ShardingRuleConfiguration shardingRuleConfiguration = new ShardingRuleConfiguration();
+        shardingRuleConfiguration.getShardingAlgorithms().put("table_hash_mod", new AlgorithmConfiguration("hash_mod", new Properties()));
+        shardingRuleConfiguration.getKeyGenerators().put("snowflake_key_generator", new AlgorithmConfiguration("SNOWFLAKE", new Properties()));
+        String sql = "CREATE SHARDING TABLE RULE t_order_item ("
+                + "DATANODES('ds_${0..1}.t_order_item_${0..1}'),"
+                + "DATABASE_STRATEGY(TYPE='standard',SHARDING_COLUMN=user_id,SHARDING_ALGORITHM(TYPE(NAME='inline',PROPERTIES('algorithm-expression'='resource_${user_id % 2}')))),"
+                + "TABLE_STRATEGY(TYPE='standard',SHARDING_COLUMN=order_id,SHARDING_ALGORITHM=table_hash_mod),"
+                + "KEY_GENERATE_STRATEGY(COLUMN=another_id,KEY_GENERATOR=snowflake_key_generator));";
+        CreateShardingTableRuleStatement createShardingTableRuleStatement = (CreateShardingTableRuleStatement) getDistSQLStatement(sql);
+        updater.checkSQLStatement(database, createShardingTableRuleStatement, shardingRuleConfiguration);
+        ShardingRuleConfiguration shardingRuleConfiguration1 = updater.buildToBeCreatedRuleConfiguration(createShardingTableRuleStatement);
+        assertThat(shardingRuleConfiguration1, is(1));
+    }
+
     private AutoTableRuleSegment createCompleteAutoTableRule() {
         AutoTableRuleSegment result = new AutoTableRuleSegment("t_order_item_input", Collections.singletonList("logic_ds"));
         result.setKeyGenerateStrategySegment(new KeyGenerateStrategySegment("product_id", new AlgorithmSegment("DISTSQL.FIXTURE", new Properties())));
@@ -159,7 +181,7 @@ public final class CreateShardingTableRuleStatementUpdaterTest {
         result.setShardingAlgorithmSegment(new AlgorithmSegment("FOO.DISTSQL.FIXTURE", createProperties("", "")));
         return result;
     }
-    
+
     private TableRuleSegment createCompleteTableRule() {
         TableRuleSegment result = new TableRuleSegment("t_order_input", Collections.singletonList("ds_${0..1}.t_order_${0..1}"));
         result.setTableStrategySegment(new ShardingStrategySegment("standard", "product_id", "t_order_algorithm", null));
