@@ -127,7 +127,12 @@ public enum ConfigurationPropertyKey implements TypedPropertyKey {
     /**
      * CDC server port.
      */
-    CDC_SERVER_PORT("cdc-server-port", "33071", int.class, true);
+    CDC_SERVER_PORT("cdc-server-port", "33071", int.class, true),
+    
+    /**
+     * proxy frontend connection idle timeout.
+     */
+    PROXY_FRONTEND_CONNECTION_IDLE_TIMEOUT("proxy-frontend-connection-idle-timeout", "28800", int.class, true);
     
     private final String key;
     

@@ -121,7 +121,19 @@ public final class SetDistVariableUpdaterTest {
         SetDistVariableUpdater updater = new SetDistVariableUpdater();
         assertThrows(InvalidValueException.class, () -> updater.executeUpdate(connectionSession, statement));
     }
-    
+
+    @Test
+    public void assertExecuteWithProxyFrontendConnectionIdleTimeout() {
+        SetDistVariableStatement statement = new SetDistVariableStatement("proxy-frontend-connection-idle-timeout", "3600");
+        SetDistVariableUpdater updater = new SetDistVariableUpdater();
+        ContextManager contextManager = mockContextManager();
+        when(ProxyContext.getInstance().getContextManager()).thenReturn(contextManager);
+        updater.executeUpdate(connectionSession, statement);
+        Object actualValue = contextManager.getMetaDataContexts().getMetaData().getInternalProps().getProps().get("proxy-frontend-connection-idle-timeout");
+        assertThat(actualValue.toString(), is("3600"));
+        assertThat(contextManager.getMetaDataContexts().getMetaData().getProps().getValue(ConfigurationPropertyKey.PROXY_FRONTEND_CONNECTION_IDLE_TIMEOUT), is(3600));
+    }
+
     private ContextManager mockContextManager() {
         StandaloneModeContextManager standaloneModeContextManager = new StandaloneModeContextManager();
         ContextManager result = new ContextManager(new MetaDataContexts(mock(MetaDataPersistService.class), new ShardingSphereMetaData()),
