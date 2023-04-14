@@ -45,6 +45,7 @@ public final class ServerHandlerInitializer extends ChannelInitializer<Channel> 
         pipeline.addLast(new ChannelAttrInitializer());
         pipeline.addLast(new PacketCodec(databaseProtocolFrontendEngine.getCodecEngine()));
         pipeline.addLast(new FrontendChannelLimitationInboundHandler(databaseProtocolFrontendEngine));
+        pipeline.addLast(new FrontendIdleStateHandler());
         pipeline.addLast(new FrontendChannelInboundHandler(databaseProtocolFrontendEngine, socketChannel));
     }
 }

@@ -111,4 +111,12 @@ public final class FrontendChannelInboundHandler extends ChannelInboundHandlerAd
             connectionSession.getBackendConnection().getResourceLock().doNotify();
         }
     }
+
+    @Override
+    public void userEventTriggered(final ChannelHandlerContext context, final Object evt) {
+        if (null == connectionSession.getQueryContext()) {
+            log.info("Timeout, closed the connection:{}", connectionSession.getConnectionId());
+            context.close();
+        }
+    }
 }
